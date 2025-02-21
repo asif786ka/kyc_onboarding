@@ -1,181 +1,370 @@
-# kyc_onboarding
-
-# TradingKYC - Flutter-based KYC Onboarding System
+# Multi-Region KYC Onboarding Library (Flutter) - Monorepo Approach
 
 ## Overview
 
-TradingKYC is a **Flutter-based KYC Onboarding System** designed for **kyc onboarding**. It ensures **regulatory compliance** by integrating **AI/ML-powered identity verification, secure document handling, and compliance checks** against **sanctions/PEP databases**.
+The **Multi-Region KYC Main app project integrating KYC Onboarding Library** is a **Flutter package** designed for **Know Your Customer (KYC) onboarding and compliance verification** across multiple regions. It supports **dynamic region selection**, **AI-based identity verification**, **secure storage per region**, and **regulatory compliance (GDPR, CCPA, DFSA, etc.)**.
 
-The project follows **Clean Architecture** principles using **BLoC & Riverpod** for state management, **Dio for API interactions**, and **Flutter Secure Storage** for handling sensitive user data.
+This project follows a **Monorepo Approach** for **scalability and efficient branch management**, allowing seamless integration of the **KYC Library** with the **Main Flutter App** while enabling independent deployment workflows.
+
+## 1. Monorepo Structure
+
+```
+kyc_monorepo/
+├── apps/                           # Main Flutter Applications
+│   ├── main_app/                   # Primary app using KYC Library
+│   │   ├── lib/                    
+│   │   │   ├── main.dart            # Entry point for the app
+│   │   │   ├── features/kyc/        # Integration of KYC Library
+│   │   │   ├── pubspec.yaml         # Includes local dependency to KYC Library
+│   ├── kyc_library/                 # Standalone KYC Library Package
+│   │   ├── lib/                    
+│   │   │   ├── kyc_region_library.dart  # Library entry point
+│   │   │   ├── src/                  # Core library code
+│   │   │   ├── pubspec.yaml           # Library dependencies
+│
+├── packages/                        # Shared Utility Packages
+│   ├── api_services/                 # Common API service package
+│   ├── ui_components/                # Shared UI widgets across apps
+│
+├── .github/                          # GitHub Actions CI/CD Workflow
+│   ├── workflows/
+│   │   ├── deploy_main_app.yml       # Deployment pipeline for main app
+│   │   ├── deploy_kyc_library.yml    # Deployment pipeline for KYC Library
+│
+├── scripts/                          # Deployment & automation scripts
+│   ├── deploy_main_app.sh            # Automated deployment script for main app
+│   ├── deploy_kyc_library.sh         # Deployment script for KYC library
+│
+├── README.md                         # Documentation
+```
+
+## 2. Git Branch Management Strategy
+
+To efficiently manage development and releases, we follow **Gitflow** branch management:
+
+- **`main`** – Production-ready code.
+- **`develop`** – Integration branch for new features.
+- **`feature/{feature-name}`** – Individual feature branches.
+- **`release/{version}`** – Stabilization branches before releases.
+- **`hotfix/{fix-name}`** – Emergency bug fixes on production.
+
+### **Branching Workflow for Library & Main App**
+
+1. Create a feature branch:
+   ```bash
+   git checkout -b feature/add-new-kyc-feature
+   ```
+2. Work on the feature and commit changes:
+   ```bash
+   git add .
+   git commit -m "Added new KYC feature"
+   ```
+3. Push and create a pull request:
+   ```bash
+   git push origin feature/add-new-kyc-feature
+   ```
+4. Merge into `develop` and later into `main`.
+
+---
+
+## 3. **Integrating KYC Library into the Main App**
+
+1️⃣ **Clone the Monorepo**
+
+```bash
+git clone https://github.com/exinity/kyc_monorepo.git
+cd kyc_monorepo
+```
+
+2️⃣ **Configure the Main App to Use the KYC Library**
+
+Edit the **pubspec.yaml** of the **Main App** to include the **local KYC library**:
+
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  kyc_region_library:
+    path: ../../kyc_library
+```
+
+3️⃣ **Import and Use the KYC Library**
+
+In `main.dart` of the **Main App**, integrate the **KYC Library**:
+
+```dart
+import 'package:kyc_region_library/kyc_region_library.dart';
+
+void main() {
+  String userRegion = RegionSelector.getRegion("US");
+
+  runApp(KYCApp(region: userRegion));
+}
+```
+
+4️⃣ **Run the Main App with KYC Integration**
+
+```bash
+flutter run --flavor dev
+```
+
+---
+
+## 4. **Deployment Strategies**
+
+### **🔹 GitHub Actions CI/CD for Main App Deployment**
+`.github/workflows/deploy_main_app.yml`
+
+```yaml
+name: Deploy Main App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.10.0
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Deploy to Firebase
+        run: firebase deploy --only hosting
+```
+
+### **🔹 GitHub Actions CI/CD for KYC Library Deployment**
+`.github/workflows/deploy_kyc_library.yml`
+
+```yaml
+name: Deploy KYC Library
+
+on:
+  push:
+    paths:
+      - 'kyc_library/**'
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.10.0
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Run Tests
+        run: flutter test
+
+      - name: Publish to Pub.dev
+        run: flutter pub publish --dry-run
+```
+
+---
+
+## **5. Deployment Using CircleCI**
+
+#### **CircleCI Config for Main App Deployment**
+
+`.circleci/config.yml`
+
+```yaml
+version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: circleci/flutter:latest
+
+    steps:
+      - checkout
+      - run:
+          name: Install Dependencies
+          command: flutter pub get
+      - run:
+          name: Run Tests
+          command: flutter test
+      - run:
+          name: Build Release APK
+          command: flutter build apk --release
+      - persist_to_workspace:
+          root: .
+          paths:
+            - build/app/outputs/apk/release/app-release.apk
+
+workflows:
+  version: 2
+  build-and-deploy:
+    jobs:
+      - build
+```
+
+---
+
+## **6. Future Enhancements**
+
+✅ **Automated Release Versioning** – Implement GitHub Actions to auto-bump versions.  
+✅ **Multi-Region API Load Balancing** – Deploy via AWS Global Accelerator.  
+✅ **Flutter Web Integration** – Extend KYC onboarding for web platforms.  
+
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+# Multi-Region KYC Onboarding Library (Flutter) as an independent project which can be integrated by other projects
+
+## Overview
+
+The **Multi-Region KYC Onboarding Library** is a **Flutter package** designed to handle **Know Your Customer (KYC) onboarding and compliance verification** across multiple regions. It supports **dynamic region selection**, **AI-based identity verification**, **secure storage per region**, and **regulatory compliance (GDPR, CCPA, DFSA, etc.)**.
+
+The project follows the **Clean architecture**, leveraging **BLoC & Riverpod** for state management, **Dio for API interactions**, and **Flutter Secure Storage** for handling sensitive user data.
 
 ## 1. System Architecture
 
-The architecture consists of three key layers:
+The library is structured into **four key layers**:
 
-- **Presentation Layer**: UI screens, widgets, and state management using **BLoC/Riverpod**.
-- **Domain Layer**: Business logic, use cases, and entities that interact with repositories.
-- **Data Layer**: API services, repositories, secure storage, and compliance checks.
+- **Data Layer**: Multi-region API management, secure storage handling, and compliance checks.
+- **Domain Layer**: Business logic, use cases, and entity models.
+- **Business Logic Layer**: Handles state management using BLoC/Riverpod.
+- **Presentation Layer**: UI screens and reusable components.
 
-## 2. Setup Instructions
+## 2. Folder Structure
 
-### **1. Clone the Repository**
-
-```bash
-git clone https://github.com/asif786ka/kyc_onboarding/.git
-cd tradingkyc
+```
+kyc_region_library/
+├── lib/
+│   ├── kyc_region_library.dart        # Entry point for the library package
+│   │
+│   ├── src/
+│   │   ├── regions/                   # Multi-region configuration
+│   │   │   ├── region_selector.dart   # Auto-detects user's region
+│   │   │   ├── region_config.dart     # Configuration based on region
+│   │   │   ├── us/                    # US-specific implementation
+│   │   │   │   ├── us_api_provider.dart
+│   │   │   │   ├── us_compliance.dart
+│   │   │   │   ├── us_secure_storage.dart
+│   │   │   ├── eu/                    # EU-specific implementation
+│   │   │   │   ├── eu_api_provider.dart
+│   │   │   │   ├── eu_compliance.dart
+│   │   │   │   ├── eu_secure_storage.dart
+│   │   │   ├── uk/                    # UK-specific implementation
+│   │   │   │   ├── uk_api_provider.dart
+│   │   │   │   ├── uk_compliance.dart
+│   │   │   │   ├── uk_secure_storage.dart
+│   │   │   ├── ae/                    # UAE-specific implementation
+│   │   │   │   ├── ae_api_provider.dart
+│   │   │   │   ├── ae_compliance.dart
+│   │   │   │   ├── ae_secure_storage.dart
+│   │
+│   │   ├── api/                       # API Service Layer
+│   │   │   ├── api_service.dart       # Handles region-based API calls
+│   │   │   ├── kyc_repository.dart    # Abstract KYC repository
+│   │
+│   │   ├── storage/                   # Secure storage handling
+│   │   │   ├── secure_storage.dart    # Global storage implementation
+│   │
+│   │   ├── compliance/                # Regulatory compliance per region
+│   │   │   ├── compliance_checker.dart
+│   │
+│   │   ├── ui/                        # UI Components for KYC
+│   │   │   ├── kyc_screen.dart        # Main KYC screen
+│   │   │   ├── document_upload.dart   # Document upload UI
+│   │   │   ├── face_verification.dart # Face verification UI
+│   │
+│   ├── models/                        # Data models for API responses
+│   │   ├── kyc_user_model.dart
+│   │   ├── compliance_model.dart
+│   │   ├── document_model.dart
+│
+├── example/                           # Example Flutter app for testing
+│   ├── main.dart                      # Shows how to use the package
+│
+├── pubspec.yaml                        # Package dependencies and metadata
+├── README.md                           # Documentation on how to use the library
 ```
 
-### **2. Install Dependencies**
+## 3. Features
+
+✅ **Multi-Region API Handling** – Dynamically selects API endpoints per user region.  
+✅ **Secure Storage Per Region** – Implements **GDPR, CCPA, DFSA** compliance.  
+✅ **AI-Based KYC Verification** – OCR-based document verification and face matching.  
+✅ **Dynamic UI Adaptation** – UI components adjust based on compliance requirements.  
+✅ **Scalable Architecture** – Uses **Very Good Flutter Architecture** for modularity.  
+
+## 4. Setup Instructions
+
+### **1️⃣ Clone the Repository**
+
+```bash
+git clone https://github.com/exinity/kyc_region_library.git
+cd kyc_region_library
+```
+
+### **2️⃣ Install Dependencies**
 
 ```bash
 flutter pub get
 ```
 
-### **3. Setup Environment Variables**
+### **3️⃣ Configure API and Storage per Region**
 
-Create a `.env` file and add:
+Modify `.env` file to include **region-specific endpoints**:
 
 ```env
-API_BASE_URL="https://your-api.com"
-AUTH_SECRET="your-secret-key"
+API_BASE_URL_US="https://api.us-kyc.com"
+API_BASE_URL_EU="https://api.eu-kyc.com"
+API_BASE_URL_UK="https://api.uk-kyc.com"
+API_BASE_URL_AE="https://api.ae-kyc.com"
 ```
 
-### **4. Run the Application**
+### **4️⃣ Implement in a Flutter App**
 
-```bash
-flutter run
+```dart
+import 'package:kyc_region_library/kyc_region_library.dart';
+
+void main() {
+  String userRegion = RegionSelector.getRegion("US"); // Detect user's region
+
+  runApp(KYCApp(region: userRegion));
+}
 ```
 
-## 3. Folder Structure & Class Explanations
+## 5. Deployment Strategy
 
-Below is a breakdown of each **folder** and the **classes** within them:
+✅ **AWS Global Accelerator** for multi-region traffic routing.  
+✅ **CloudFront for API Gateway** ensuring low-latency connections.  
+✅ **Docker & Kubernetes** for region-based microservices.  
+✅ **CI/CD Pipelines** (GitHub Actions, Bitbucket Pipelines) for automated deployment.  
 
-### **📂 lib/**
-This is the root directory where all Flutter application code is stored.
+## 6. Future Enhancements
 
-### **📂 core/**
-Contains core utilities that are used throughout the app.
-
-| File | Purpose |
-|------|---------|
-| `constants/app_strings.dart` | Defines text strings used across the app. |
-| `constants/app_routes.dart` | Defines all navigation routes. |
-| `constants/api_endpoints.dart` | Stores all backend API endpoints. |
-| `error/failure.dart` | Defines failure models for handling errors. |
-| `error/error_handler.dart` | Centralized error handling mechanism. |
-| `utils/validators.dart` | Implements input validation logic. |
-| `utils/image_picker.dart` | Handles document image selection. |
-| `utils/secure_storage.dart` | Handles secure local storage for user data. |
-| `network/api_client.dart` | API request management using **Dio**. |
-| `network/api_interceptor.dart` | Adds authentication headers & logs API responses. |
-| `dependency_injection/service_locator.dart` | Registers services, repositories & dependencies. |
-| `theme/app_theme.dart` | Defines UI themes and styles. |
-| `localization/app_localizations.dart` | Manages multi-language support. |
-| `router.dart` | Configures named navigation routes. |
+- 🔹 **Blockchain-based Identity Verification**  
+- 🔹 **AI-powered Fraud Detection Models**  
+- 🔹 **Real-time KYC Status Monitoring Dashboard** 
 
 ---
 
-### **📂 features/**
-Contains **feature-specific modules**. Each feature has its own **presentation, domain, and data layers**.
+## 📌 Authors Asif Ali Kazmi
 
-#### **📂 kyc_onboarding/**
-Handles the **KYC onboarding process**, including **document uploads, face verification, and compliance checks**.
-
-##### **📂 presentation/**
-Responsible for UI screens, widgets, and state management.
-
-| File | Purpose |
-|------|---------|
-| `blocs/kyc_bloc.dart` | BLoC for managing KYC state. |
-| `blocs/kyc_event.dart` | Defines KYC-related events. |
-| `blocs/kyc_state.dart` | Represents various states of KYC onboarding. |
-| `providers/kyc_provider.dart` | Riverpod provider for managing KYC state. |
-| `pages/kyc_screen.dart` | UI for KYC onboarding steps. |
-| `pages/document_upload_screen.dart` | UI for uploading documents. |
-| `pages/face_verification_screen.dart` | UI for face verification. |
-| `pages/compliance_check_screen.dart` | UI for checking user compliance. |
-| `widgets/kyc_progress_bar.dart` | Displays onboarding progress. |
-| `widgets/document_picker.dart` | Handles document selection. |
-| `widgets/face_scan_widget.dart` | Handles real-time face scanning. |
-
-##### **📂 domain/**
-Contains **business logic, use cases, and entity models**.
-
-| File | Purpose |
-|------|---------|
-| `entities/user_entity.dart` | Defines business logic for a user. |
-| `entities/document_entity.dart` | Represents document information. |
-| `entities/compliance_entity.dart` | Represents compliance verification model. |
-| `usecases/start_kyc_usecase.dart` | Starts the KYC process. |
-| `usecases/upload_document_usecase.dart` | Handles document uploads. |
-| `usecases/verify_face_usecase.dart` | Calls ML-based face verification API. |
-| `usecases/check_compliance_usecase.dart` | Checks PEP/sanctions compliance. |
-
-##### **📂 data/**
-Handles **data persistence, API integration, and repositories**.
-
-| File | Purpose |
-|------|---------|
-| `models/user_model.dart` | Defines user model for API interaction. |
-| `models/document_model.dart` | Defines document model for API. |
-| `models/compliance_model.dart` | Defines compliance model for API. |
-| `repositories/kyc_repository.dart` | Abstract repository for KYC operations. |
-| `repositories/kyc_repository_impl.dart` | Implements KYC repository logic. |
-| `datasources/remote/kyc_remote_data_source.dart` | Fetches data from API. |
-| `datasources/local/kyc_local_data_source.dart` | Manages local data storage. |
-| `services/api_service.dart` | Manages API calls related to KYC. |
-| `services/document_service.dart` | Handles document upload processing. |
-| `services/ocr_service.dart` | Calls OCR API for text extraction. |
-| `services/face_verification_service.dart` | Calls AI-based face verification API. |
-| `services/compliance_service.dart` | Calls compliance verification API. |
-
----
-
-### **📂 testing/**
-Contains **unit and integration tests**.
-
-| Folder | Purpose |
-|------|---------|
-| `unit/` | Unit tests for core logic. |
-| `widget/` | UI tests for individual screens & components. |
-| `integration/` | End-to-end tests for API interactions. |
-
----
-
-## 4. Dependencies
-
-- **State Management**: `flutter_bloc`, `riverpod`
-- **Networking**: `dio`
-- **Secure Storage**: `flutter_secure_storage`
-- **File Handling**: `file_picker`, `image_picker`
-- **AI/ML**: Custom API for OCR & Face Verification
-
-## 5. Testing
-
-Run unit tests with:
-
-```bash
-flutter test
-```
-
-
-## 6. Key Implementation Details for Exinity Trading App KYC
-
-State Management: Uses BLoC for UI state and Riverpod for dependency injection and state management.
-Repositories: Implements repository pattern for data retrieval and API communication.
-Secure Storage: Uses flutter_secure_storage and Hive for storing user authentication and KYC data.
-AI/ML Integration:
-OCR Processing (Amazon Textract, Google Vision, or Tesseract OCR)
-Face Verification (Amazon Rekognition, Jumio, or Onfido)
-Compliance & Verification:
-Sanctions, PEP, and DMV Checks using Third-Party APIs.
-Secure Document Handling:
-AWS S3, Firebase Storage, or PostgreSQL for compliance record keeping.
-Notifications System:
-AWS SES for email notifications.
-Firebase Cloud Messaging for push notifications.
-
-
-## 📌 Authors asif786ka@gmail.com
-
-**Asif Ali Kazmi**
+**Asif and Email : asif786ka@gmail.com**
